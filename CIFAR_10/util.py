@@ -50,12 +50,28 @@ class BinOp():
             self.saved_params[index].copy_(self.target_modules[index].data)
 
     def binarizeConvParams(self):
+        
         for index in range(self.num_of_params):
-            n = self.target_modules[index].data[0].nelement()
-            s = self.target_modules[index].data.size()
-            m = self.target_modules[index].data.norm(1, 3, keepdim=True)\
+                n = self.target_modules[index].data[0].nelement()
+                s = self.target_modules[index].data.size()
+                m = self.target_modules[index].data.norm(1, 3, keepdim=True)\
                     .sum(2, keepdim=True).sum(1, keepdim=True).div(n)
-            self.target_modules[index].data = \
+            if index in kbit_conn:
+                x = self.target_modules[index].data
+                xmax = x.abs().max()
+                num_bits=2
+                v0 = 1
+                v1 = 2
+                v2 = -0.5
+                y = 2.**num_bits - 1.
+                x = x.add(v0).div(v1)
+                x = x.mul(y).round_()
+                x = x.div(y)
+                x = x.add(v2)
+                x = x.mul(v1)
+                self.target_modules[index].data = x.mul(m.expand(s))
+	        else:
+                self.target_modules[index].data = \
                     self.target_modules[index].data.sign().mul(m.expand(s))
 
     def restore(self):
