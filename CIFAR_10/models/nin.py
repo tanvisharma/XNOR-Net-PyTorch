@@ -2,6 +2,35 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 
+class BinActive2(torch.autograd.Function):
+    '''
+    Binarize the input activations and calculate the mean across channel dimension.
+    '''
+    def forward(self, input):
+        self.save_for_backward(input)
+        size = input.size()
+        mean = torch.mean(input.abs(), 1, keepdim=True)
+	x = input
+	xmax = x.abs().max()
+	num_bits=2
+	v0 = 1
+	v1 = 2
+	v2 = -0.5
+        y = 2.**num_bits - 1.
+	x = x.add(v0).div(v1)
+	x = x.mul(y).round_()
+	x = x.div(y)
+	x = x.add(v2)
+	x = x.mul(v1)
+	input = x
+        return input, mean
+
+    def backward(self, grad_output, grad_output_mean):
+        input, = self.saved_tensors
+        grad_input = grad_output.clone()
+        return grad_input
+    
+    
 class BinActive(torch.autograd.Function):
     '''
     Binarize the input activations and calculate the mean across channel dimension.
